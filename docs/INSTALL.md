@@ -43,6 +43,19 @@
 
 EEPROM 库是 AVR 开发板支持包自带的，不需要另外安装。
 
+已验证可编译的版本组合（arduino-cli 1.5.2，2026-09）：
+
+| 组件 | 版本 |
+| --- | --- |
+| Arduino AVR Boards (`arduino:avr`) | 1.8.8（avr-gcc 7.3.0-atmel3.6.1-arduino7） |
+| Adafruit TCS34725 | 1.4.4 |
+| Adafruit BusIO | 1.17.4 |
+| LiquidCrystal I2C | 1.1.2 |
+| HCSR04 ultrasonic sensor | 2.0.3 |
+| BricktronicsMegashield / BricktronicsMotor | GitHub master |
+
+编译结果：程序存储空间约 40KB（16%），全局变量约 2.7KB（32%）。
+
 ## 2. 方式一：Arduino IDE
 
 ### 2.1 安装 IDE

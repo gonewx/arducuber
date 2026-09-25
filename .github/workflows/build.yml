@@ -1,0 +1,25 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run host unit tests
+        run: make test
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: arducuber
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install core and libraries
+        run: arducuber/scripts/arduino.sh setup
+      - name: Compile for Arduino Mega 2560
+        run: arducuber/scripts/arduino.sh compile
