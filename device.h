@@ -3,7 +3,6 @@
 
 #include <BricktronicsMegashield.h>
 #include <BricktronicsMotor.h>
-#include <BricktronicsButton.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_TCS34725.h>
 

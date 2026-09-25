@@ -1,7 +1,7 @@
 
 # 乐高魔方机器人
 
-基于开源硬件 Arduino Mega2650 和 [MindCuber](http://mindcuber.com) 打造最便宜、兼容多款魔方、高成功率的乐高魔方机器人。
+基于开源硬件 Arduino Mega2560 和 [MindCuber](http://mindcuber.com) 打造最便宜、兼容多款魔方、高成功率的乐高魔方机器人。
 所有硬件都是某宝可以买到，关键是要价格亲民。
 
 已测试兼容的魔方
@@ -25,31 +25,30 @@
   - ev3 分支选择乐高 EV3 套装， 拼搭说明见 [How to build MindCub3r for LEGO MINDSTORMS EV3](http://mindcuber.com/mindcub3r/mindcub3r.html)
   - spike 分支选择乐高 Spike 套装， 拼搭说明见 [How to build PrimeCuber for LEGO Education SPIKE Prime](http://mindcuber.com/primecuber/primecuber.html)
 - 程序部分参考 [MindCuber 源码](http://mindcuber.com/mindcuber/mindcuber-source.html)
-- 主控 Arduino Mega2650
+- 主控 Arduino Mega2560
 - 传感器控制板 [Bricktronics Megashield](https://github.com/wayneandlayne/BricktronicsHardware)
 - 颜色传感器 [TCS34725](assets/tcs34725.png)
 - 乐高马达或国产兼容马达
 - 超声波传感器使用 HCSR04
 - ADKeyboard
 
-## 依赖
+## 安装与运行
 
-安装到 Arduino 的 libraries
-- [BricktronicsMegashield](https://github.com/wayneandlayne/BricktronicsMegashield)
-- [BricktronicsMotor](https://github.com/wayneandlayne/BricktronicsMotor)
+完整步骤（Arduino IDE 2.x / arduino-cli、依赖库、首次运行、常见问题）见 **[docs/INSTALL.md](docs/INSTALL.md)**。
 
-使用 Arduino IDE 安装
+依赖库一览:
 
-- Adafruit_BusIO
-- Adafruit_TCS34725
-- HCSR04
-- LiquidCrystal_I2C
+- Arduino AVR Boards（开发板: Arduino Mega or Mega 2560）
+- [BricktronicsMegashield](https://github.com/wayneandlayne/BricktronicsMegashield)、[BricktronicsMotor](https://github.com/wayneandlayne/BricktronicsMotor)（GitHub 手动安装）
+- Adafruit TCS34725（自动带上 Adafruit BusIO）、LiquidCrystal I2C（Frank de Brabander）、HCSR04 ultrasonic sensor（gamegine）（库管理器安装）
+
+使用 arduino-cli 时可直接运行 `scripts/arduino.sh setup` 安装全部依赖。
 
 ## 硬件成本
 
 | 器件                    | 数量 | 成本 (RMB) | 描述 |
 | ----------------------- | ---- | ---------- | ---- |
-| Arduino Mega2650        | 1    | 40         | -    |
+| Arduino Mega2560        | 1    | 40         | -    |
 | Bricktronics Megashield | 1    | 15         | -    |
 | TCS34725                | 1    | 6.5        | -    |
 | Lego Ev3大马达          | 2    | 80         | -    |
@@ -77,6 +76,8 @@
 - 按下ADKeyboard 的 `确认按钮` 启动机器人
 - 按下ADKeyboard 的 `左右按钮` 校准底盘位置，确保垂直于中轴线
 - 放入打乱的魔方，机器人会自动识别并还原
+
+详细说明（含白平衡校准和 LCD 提示含义）见 [docs/INSTALL.md](docs/INSTALL.md#4-首次运行)。
 ### 可调参数
 
 `global.h` 中集中了需要在实机上调试的参数:
