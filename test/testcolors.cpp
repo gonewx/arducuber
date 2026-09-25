@@ -10,7 +10,7 @@ CubeColors cubeColors;
 
 void printColor(Color color)
 {
-    cout << " rgb(" << color.r << "," << color.g << "," << color.b << ") h:" << color.h << " s:" << color.s << " l:" << color.l << " sl:" << color.sl << " rg:" << cubeColors.clr_ratio(color.r, color.g) << " bg:" << cubeColors.clr_ratio(color.b, color.g) << " rb:" << cubeColors.clr_ratio(color.r, color.b) << endl;
+    cout << " rgb(" << +color.r << "," << +color.g << "," << +color.b << ") h:" << color.h << " s:" << color.s << " l:" << color.l << " sl:" << color.sl << " rg:" << cubeColors.clr_ratio(color.r, color.g) << " bg:" << cubeColors.clr_ratio(color.b, color.g) << " rb:" << cubeColors.clr_ratio(color.r, color.b) << endl;
 }
 
 void print()

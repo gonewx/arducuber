@@ -1,6 +1,8 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <stdint.h>
+
 // #define DEBUG
 
 //-----------------------------------------------------------------------------
@@ -18,20 +20,10 @@
 
 #define L_DEL 1000
 
-#define T_90 180
-#define T_CUT 10
-#define T_OVR 57
-
 // tcs34725 two 
 #define T_SCNT -675
 #define T_SEDG -575
 #define T_SCNR -545
-
-#define T_TILT 140
-#define T_TAWY 20
-#define T_TREL 62
-#define T_THLD 200
-#define T_ADJ 3
 
 #define M_TURN 0
 #define M_TILT 1
@@ -42,6 +34,19 @@
 #define P_HIGH 180
 
 #define M_WAIT_MUL 4
+
+// 等待电机到位的超时时间 (ms)。超时后不再无限等待, 避免魔方卡住时程序挂死
+#define MOTOR_WAIT_TIMEOUT_MS 5000
+
+// 扫描臂到位后, 读取颜色前的稳定等待 (ms)
+#define SCAN_SETTLE_MS 100
+
+// 每个色块采样次数: 3 = 读 3 次各通道取中值以抑制噪声; 1 = 单次读取 (与旧版本相同)
+#define SCAN_SAMPLES 3
+
+// 拧层时的过冲角度 (电机角度, 已含齿轮比)。先多转该角度再回退, 用于克服魔方阻力、
+// 让层转到位。MindCuber 原版为 T_OVR = 57。0 = 关闭 (与旧版本行为相同), 需在实机上调试
+#define TURN_OVERSHOOT 0
 
 #define NFACE 6 // number of faces in cube
 #define POS(FF, OO) (((FF)*8) + (OO))
@@ -59,10 +64,8 @@ uint8_t white_rgb[3] = {255, 255, 255};
 // 齿轮比
 const int ratio[] = {3, 1, 3};
 
-// 电机位置
-int32_t positions[] = {0, 0, 0};
-
-int32_t c = 24;
+// 电机目标位置, 定时器中断中会读取, 主循环写入时须使用 setTarget() 保证原子性
+volatile int32_t positions[] = {0, 0, 0};
 
 bool scanOK = true;
 

@@ -6,8 +6,11 @@
 #include "global.h"
 #include "mcmoves.h"
 #include "validator.h"
+#ifdef ARDUINO
+// manipulate() 需要驱动电机; 主机端单元测试 (test/host) 不编译这部分
 #include "tilt.h"
 #include "turn.h"
+#endif
 
 //-----------------------------------------------------------------------------
 // Routines to display, transform and solve a cube
@@ -26,7 +29,7 @@ const byte opposite[] = {CUBE_DOWN, CUBE_BACK, CUBE_UP, CUBE_FRONT, CUBE_LEFT, C
 
 #define MAP(UU, FF) (imap[((UU)*NFACE) + (FF)] * NFACE)
 
-const byte imap[] = {
+const int8_t imap[] = { // -1: 非法的 (上, 前) 组合
     /*       U   F   D   B   R   L */
     /* U */ -1, 0, -1, 1, 2, 3,
     /* F */ 4, -1, 5, -1, 6, 7,
@@ -362,7 +365,7 @@ public:
     {
         idx = ((idx >> 2) << 1) | (idx & 1);
     }
-    int index_corner(byte *cube, byte f0, byte f1, byte f2)
+    void index_corner(byte *cube, byte f0, byte f1, byte f2)
     {
         int ic = validator.find_corner(cube, f0, f1, f2);
         for (int i = 0; i < idx_nc; i++)
@@ -591,6 +594,7 @@ public:
         return true;
     }
 
+#ifdef ARDUINO
     void manipulate(byte *cube, int f, int r, int rn)
     {
         int map = MAP(uc, fc);
@@ -647,16 +651,17 @@ public:
 
         Spin(r);
     }
+#endif
 
 public:
     bool valid;
     int solve_n;
     byte solve_fce[MV_MAX];
-    int solve_rot[MV_MAX];
+    int8_t solve_rot[MV_MAX]; // -1 .. 2
     byte solve_cube[NFACE * 8];
     int mv_n;
     byte mv_f[MV_MAX];
-    int mv_r[MV_MAX];
+    int8_t mv_r[MV_MAX]; // -1 .. 2
     int idx_ic;
     int idx_ie;
     int idx_idx[NPIECE];

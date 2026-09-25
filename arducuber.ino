@@ -8,7 +8,6 @@
 #include "scan.h"
 #include "color.h"
 #include "mcmoves.h"
-#include "fakedata.h"
 
 void setup()
 {
@@ -43,61 +42,31 @@ void setup()
   TIMSK0 |= _BV(OCIE0A);
 }
 
-// This function will be called every millisecond.
-// It just calls update() for each motor.
+// Timer0 比较中断, 约每 1ms 触发一次; 每 50ms 为各电机执行一次 PID update()。
+// 电机连续 5 个周期停在目标附近后暂停 update(), 以减少到位后的抖动。
 ISR(TIMER0_COMPA_vect)
 {
   static unsigned char count_ms = 0;
-  static int stableFactor[3] = {0, 0, 0};
+  static uint8_t stableFactor[3] = {0, 0, 0};
 
   if (++count_ms == 50)
   {
-    if (abs(positions[M_TURN] - motors[M_TURN].getPosition()) < 5)
+    for (uint8_t m = 0; m < 3; m++)
     {
-      stableFactor[M_TURN]++;
-      if (stableFactor[M_TURN] > 5)
-        stableFactor[M_TURN] = 5;
-    }
-    else
-    {
-      stableFactor[M_TURN] = 0;
-    }
+      if (abs(positions[m] - motors[m].getPosition()) < 5)
+      {
+        if (stableFactor[m] < 5)
+          stableFactor[m]++;
+      }
+      else
+      {
+        stableFactor[m] = 0;
+      }
 
-    if (stableFactor[M_TURN] < 5)
-    {
-      motors[M_TURN].update();
-    }
-
-    if (abs(positions[M_TILT] - motors[M_TILT].getPosition()) < 5)
-    {
-      stableFactor[M_TILT]++;
-      if (stableFactor[M_TILT] > 5)
-        stableFactor[M_TILT] = 5;
-    }
-    else
-    {
-      stableFactor[M_TILT] = 0;
-    }
-
-    if (stableFactor[M_TILT] < 5)
-    {
-      motors[M_TILT].update();
-    }
-
-    if (abs(positions[M_SCAN] - motors[M_SCAN].getPosition()) < 5)
-    {
-      stableFactor[M_SCAN]++;
-      if (stableFactor[M_SCAN] > 5)
-        stableFactor[M_SCAN] = 5;
-    }
-    else
-    {
-      stableFactor[M_SCAN] = 0;
-    }
-
-    if (stableFactor[M_SCAN] < 5)
-    {
-      motors[M_SCAN].update();
+      if (stableFactor[m] < 5)
+      {
+        motors[m].update();
+      }
     }
 
     count_ms = 0;
@@ -110,18 +79,16 @@ void initialize()
   motors[M_TILT].coast();
   motors[M_SCAN].coast();
 
-  motors[M_TURN].setPosition(0);
-  positions[M_TURN] = 0;
-  motors[M_TILT].setPosition(0);
-  positions[M_TILT] = 0;
-  motors[M_SCAN].setPosition(0);
-  positions[M_SCAN] = 0;
+  reset(M_TURN);
+  reset(M_TILT);
+  reset(M_SCAN);
 
   motors[M_TURN]._pid.SetOutputLimits(-MAX_M_POWER, MAX_M_POWER);
   motors[M_TILT]._pid.SetOutputLimits(-MAX_M_POWER, MAX_M_POWER);
   motors[M_SCAN]._pid.SetOutputLimits(-MAX_M_POWER, MAX_M_POWER);
 
-  bool scanOK = true;
+  scanOK = true;
+  motorTimeouts = 0;
 
   readWhiteRGB();
 }
@@ -201,16 +168,10 @@ void CubeRemove()
 
 bool Solve(byte *cube)
 {
-  unsigned long start_time = millis();
   bool solved = false;
-  int move = 0;
   int pieces_valid = 0;
   for (int tries = 0; !solved && tries < 3; tries++)
   {
-    start_time = millis();
-    solved = false;
-    move = 0;
-
     ScanCube();
 
     lcd.clear();
@@ -218,9 +179,9 @@ bool Solve(byte *cube)
     lcd.print("Processing...");
     Serial.println(F("Processing..."));
 
-    int t = -1;
-    // spike 版本增加到12
-    for (int i = 0; i < 12; i++)
+    // 依次尝试 red/orange 的各种区分方式, 共 COLOR_STRATEGIES 种
+    // (旧版本循环 12 次, 但 sort_colors 使用 t % 6, 后 6 次与前 6 次完全重复)
+    for (int i = 0; i < COLOR_STRATEGIES; i++)
     {
       lcd.clear();
       lcd.setCursor(1, 0);
@@ -238,7 +199,6 @@ bool Solve(byte *cube)
 
       if (is_valid)
       {
-        t = i;
         pieces_valid++;
         Serial.println(F("is_valid"));
         cubeColors.print();
@@ -318,6 +278,12 @@ bool Solve(byte *cube)
 
   ScanAway();
   TiltAway();
+
+  if (motorTimeouts > 0)
+  {
+    Serial.print(F("Motor timeouts: "));
+    Serial.println(motorTimeouts);
+  }
 
   return solved;
 }

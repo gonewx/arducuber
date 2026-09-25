@@ -3,7 +3,7 @@
 
 #include "global.h"
 
-const int cmax = 1024L;
+const long cmax = 1024L;
 
 #define CLR_R 0
 #define CLR_B 1
@@ -12,7 +12,12 @@ const int cmax = 1024L;
 #define CLR_W 4
 #define CLR_Y 5
 
+// red/orange 的区分方式数量, 见 sort_colors() 中的 switch (t % COLOR_STRATEGIES)
+#define COLOR_STRATEGIES 6
+
 // 参考 prime 版本
+// 字段按取值范围使用较小的类型以节省 RAM (共 54 个实例); 计算过程全部使用 long,
+// 因为 AVR 上 int 只有 16 位
 class Color
 {
 public:
@@ -24,12 +29,12 @@ public:
   //
   void setRGB(uint8_t red, uint8_t green, uint8_t blue)
   {
+    long hh = 0;
+    long ss = 0;
+    long ll = 0;
+    long v = red;
 
-    h = 0;
-    s = 0;
-    l = 0;
     sl = 0;
-    v = red;
 
     if (green > v)
       v = green;
@@ -42,59 +47,54 @@ public:
       m = blue;
 
     long vf = v + m;
-    l = long(vf / 2);
+    ll = vf / 2;
 
-    if (l > 0)
+    if (ll > 0)
     {
       long vm = v - m;
       if (vm > 0)
       {
         if (vf <= cmax)
           vf = 2 * cmax - vf;
-        s = long(cmax * vm / vf);
+        ss = cmax * vm / vf;
         if (red == v)
-          h = 0 * cmax + long(cmax * (green - blue) / vm);
+          hh = 0 * cmax + cmax * (long(green) - long(blue)) / vm;
         else
         {
           if (green == v)
-            h = 2 * cmax + long(cmax * (blue - red) / vm);
+            hh = 2 * cmax + cmax * (long(blue) - long(red)) / vm;
           else
-            h = 4 * cmax + long(cmax * (red - green) / vm);
+            hh = 4 * cmax + cmax * (long(red) - long(green)) / vm;
         }
       }
-      h += cmax; // rotate so R/B either side of 0
-      h = long(h / 6);
-      if (h < 0)
-        h += cmax;
+      hh += cmax; // rotate so R/B either side of 0
+      hh = hh / 6;
+      if (hh < 0)
+        hh += cmax;
       else
       {
-        if (h >= cmax)
-          h -= cmax;
+        if (hh >= cmax)
+          hh -= cmax;
       }
       // Emphasize low saturation for bright colors (e.g. white)
-      sl = long(cmax * s / l);
-
-      // #ifdef DEBUG
-
-      //       Serial.print(F(" sl:"));
-      //       Serial.println(sl);
-
-      // #endif
+      sl = cmax * ss / ll;
     }
+    h = hh;
+    s = ss;
+    l = ll;
     r = red;
     g = green;
     b = blue;
   }
 
 public:
-  long h;
-  long s;
-  long l;
-  long sl;
-  long v;
-  long r;
-  long g;
-  long b;
+  int16_t h;  // 0 .. cmax-1
+  int16_t s;  // 0 .. cmax
+  int16_t l;  // 0 .. 255
+  long sl;    // 可达 cmax * cmax
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
   uint8_t clr;
 };
 
@@ -117,69 +117,69 @@ public:
     return ratio;
   }
 
-  static bool cmp_h(Color c0, Color c1)
+  static bool cmp_h(const Color &c0, const Color &c1)
   {
     return c1.h > c0.h;
   }
 
-  static bool cmp_s(Color c0, Color c1)
+  static bool cmp_s(const Color &c0, const Color &c1)
   {
     return c1.s > c0.s;
   }
 
-  static bool cmp_sr(Color c0, Color c1)
+  static bool cmp_sr(const Color &c0, const Color &c1)
   {
     return c1.s < c0.s;
   }
 
-  static bool cmp_sl(Color c0, Color c1)
+  static bool cmp_sl(const Color &c0, const Color &c1)
   {
     return c1.sl > c0.sl;
   }
 
-  static bool cmp_slr(Color c0, Color c1)
+  static bool cmp_slr(const Color &c0, const Color &c1)
   {
     return c1.sl < c0.sl;
   }
 
-  static bool cmp_l(Color c0, Color c1)
+  static bool cmp_l(const Color &c0, const Color &c1)
   {
     return c1.l > c0.l;
   }
 
-  static bool cmp_lr(Color c0, Color c1)
+  static bool cmp_lr(const Color &c0, const Color &c1)
   {
     return c1.l < c0.l;
   }
 
-  static bool cmp_r_gr(Color c0, Color c1)
+  static bool cmp_r_gr(const Color &c0, const Color &c1)
   {
     return clr_ratio(c1.r, c1.g) < clr_ratio(c0.r, c0.g);
   }
 
-  static bool cmp_r_g(Color c0, Color c1)
+  static bool cmp_r_g(const Color &c0, const Color &c1)
   {
     return clr_ratio(c1.r, c1.g) > clr_ratio(c0.r, c0.g);
   }
 
-  static bool cmp_r_b(Color c0, Color c1)
+  static bool cmp_r_b(const Color &c0, const Color &c1)
   {
     return clr_ratio(c1.r, c1.b) > clr_ratio(c0.r, c0.b);
   }
-  static bool cmp_r_br(Color c0, Color c1)
+  static bool cmp_r_br(const Color &c0, const Color &c1)
   {
     return clr_ratio(c1.r, c1.b) < clr_ratio(c0.r, c0.b);
   }
-  static bool cmp_b_g(Color c0, Color c1)
+  static bool cmp_b_g(const Color &c0, const Color &c1)
   {
     return clr_ratio(c1.b, c1.g) > clr_ratio(c0.b, c0.g);
   }
-  static bool cmp_b_gr(Color c0, Color c1)
+  static bool cmp_b_gr(const Color &c0, const Color &c1)
   {
     return clr_ratio(c1.b, c1.g) < clr_ratio(c0.b, c0.g);
   }
   // s 起始坐标， n 数量
-  void sort_clrs(const int s, const int n, bool (*cmp_fn)(Color, Color))
+  void sort_clrs(const int s, const int n, bool (*cmp_fn)(const Color &, const Color &))
   {
     const int e = s + n - 2; // 4
     int is = s;              // 1
@@ -226,7 +226,7 @@ public:
     sort_clrs(1 * s, 2 * s, cmp_h);
 
     // Red / Orange 以不同方式重试
-    switch (t % 6)
+    switch (t % COLOR_STRATEGIES)
     {
     case 0: /* already sorted by hue */
       break;
@@ -373,12 +373,12 @@ public:
   uint8_t getClr(int face, int piece)
   {
 
-    Color clr = clrs[pos(face, piece)];
+    const Color &clr = clrs[pos(face, piece)];
 
     uint8_t c = 8; // white
     if (clr.sl > 50)
     {
-      c = int(8 * clr.h / cmax);
+      c = uint8_t(8 * clr.h / cmax);
     }
     return c;
   }
@@ -412,7 +412,7 @@ public:
     }
     Serial.println();
   }
-  void printClr(Color clr)
+  void printClr(const Color &clr)
   {
     Serial.print(F(" rgb("));
     Serial.print(clr.r);
@@ -462,8 +462,8 @@ public:
 
 private:
   Color clrs[NFACE * 9];
-  int clr_ord[NFACE * 4];
-  int clr_map[NFACE];
+  uint8_t clr_ord[NFACE * 4];
+  uint8_t clr_map[NFACE];
 };
 
 #endif

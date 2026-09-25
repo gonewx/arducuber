@@ -6,12 +6,8 @@
 #include "turn.h"
 #include "tilt.h"
 #include "color.h"
-#include "fakedata.h"
 
 uint8_t rgb[3];
-int scanRed[NFACE * 8];
-int scanGreen[NFACE * 8];
-int scanBlue[NFACE * 8];
 
 void ScanAway()
 {
@@ -42,9 +38,40 @@ void calibrateRGB()
     }
 }
 
+static uint8_t median3(uint8_t a, uint8_t b, uint8_t c)
+{
+    if (a > b)
+    {
+        uint8_t t = a;
+        a = b;
+        b = t;
+    }
+    if (b > c)
+        b = c;
+    return a > b ? a : b;
+}
+
+// SCAN_SAMPLES 为 3 时连续读 3 次, 各通道取中值; 为 1 时单次读取 (与旧版本相同)
+void readRGB(uint8_t *out)
+{
+    uint8_t samples[3][3];
+    const uint8_t n = SCAN_SAMPLES >= 3 ? 3 : 1;
+    for (uint8_t i = 0; i < n; i++)
+    {
+        float red, green, blue;
+        colorSensor.getRGB(&red, &green, &blue);
+        samples[0][i] = uint8_t(red);
+        samples[1][i] = uint8_t(green);
+        samples[2][i] = uint8_t(blue);
+    }
+    for (uint8_t ch = 0; ch < 3; ch++)
+    {
+        out[ch] = n == 3 ? median3(samples[ch][0], samples[ch][1], samples[ch][2]) : samples[ch][0];
+    }
+}
+
 void ScanRGB(int face, int piece, uint8_t *rgb)
 {
-    uint8_t c = 0;
 #ifdef DEBUG
     unsigned long start = millis();
     Serial.println();
@@ -57,13 +84,7 @@ void ScanRGB(int face, int piece, uint8_t *rgb)
     Serial.println();
 #endif
 
-    // colorSensor.getRGB(&rgb[0], &rgb[1], &rgb[2], &c);
-    // delay((256 - TCS34725_INTEGRATIONTIME_24MS) * 12 / 5 + 1);
-    float red, green, blue;
-    colorSensor.getRGB(&red, &green, &blue);
-    rgb[0] = uint8_t(red);
-    rgb[1] = uint8_t(green);
-    rgb[2] = uint8_t(blue);
+    readRGB(rgb);
 
     calibrateRGB();
 #ifdef DEBUG
@@ -83,8 +104,6 @@ void ScanRGB(int face, int piece, uint8_t *rgb)
 #endif
 
     cubeColors.setRGB(face, piece, rgb);
-
-    cubeColors.getClr(face, piece);
 }
 
 void ScanPiece(int face, int piece)
@@ -96,21 +115,11 @@ void ScanPiece(int face, int piece)
     Serial.print(piece);
 
 #endif
-    // delay(101);
-    int32_t pos = getPosition(M_TURN);
-
     if (scanOK)
     {
-        int index = face * 9 + piece;
-
         ScanRGB(face, piece, rgb);
-
-        uint8_t r1 = rgb[0];
-        uint8_t g1 = rgb[1];
-        uint8_t b1 = rgb[2];
     }
 
-    int32_t offset = pos - getPosition(M_TURN);
 #ifdef DEBUG
 
     cubeColors.print(face);
@@ -118,8 +127,6 @@ void ScanPiece(int face, int piece)
     Serial.println();
 #endif
 }
-const int scanDelay = 300;
-
 void ScanMiddle(int face)
 {
 #ifdef DEBUG
@@ -131,7 +138,7 @@ void ScanMiddle(int face)
 #endif
     moveAbs(M_SCAN, 100, T_SCNT, false);
     waitForArrival(M_SCAN);
-    delay(100);
+    delay(SCAN_SETTLE_MS);
     ScanPiece(face, 8);
 }
 
@@ -158,7 +165,7 @@ void ScanCorner(int face, int piece)
 #endif
         waitForArrival(M_SCAN);
         waitForArrival(M_TURN);
-        delay(100);
+        delay(SCAN_SETTLE_MS);
         ScanPiece(face, piece);
     }
     else
@@ -192,7 +199,7 @@ void ScanEdge(int face, int piece)
         waitForArrival(M_SCAN);
         waitForArrival(M_TURN);
 
-        delay(100);
+        delay(SCAN_SETTLE_MS);
         ScanPiece(face, piece);
     }
     else
@@ -240,7 +247,7 @@ void ScanFace(int face, int offset)
 }
 
 // NXT
-bool ScanCube()
+void ScanCube()
 {
     ScanFace(3, 2);
     cubeColors.print(3);

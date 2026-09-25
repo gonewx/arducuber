@@ -1,6 +1,8 @@
 #ifndef MOTOR_H
 #define MOTOR_H
 
+#include <util/atomic.h>
+
 #include "global.h"
 
 BricktronicsMotor motors[] = {
@@ -27,18 +29,23 @@ bool isOverwrite(int32_t a, int32_t b)
     return false;
 }
 
-// Go to the specified position using PID, but wait until the motor arrives
-void waitForArrival(int m, int32_t position)
+// 设置目标位置。positions[] 为 32 位, 在 8 位 AVR 上写入不是原子的,
+// 而定时器中断会读取它并调用 update(), 所以写入期间必须屏蔽中断
+void setTarget(int m, int32_t pos)
 {
-
-    while (!motors[m].settledAtPosition(position))
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
     {
-        delay(1);
+        positions[m] = pos;
+        motors[m].goToPosition(pos);
     }
 }
 
-void waitForArrival(int m)
+uint16_t motorTimeouts = 0;
+
+// 等待电机连续 10ms 停在目标附近; 超时返回 false, 避免魔方卡住时程序挂死
+bool waitForArrival(int m, unsigned long timeoutMs = MOTOR_WAIT_TIMEOUT_MS)
 {
+    unsigned long startMs = millis();
     int factor = 0;
     while (factor < 10)
     {
@@ -46,8 +53,24 @@ void waitForArrival(int m)
         {
             factor++;
         }
+        else
+        {
+            factor = 0;
+        }
+        if (millis() - startMs > timeoutMs)
+        {
+            motorTimeouts++;
+            Serial.print(F("waitForArrival timeout m:"));
+            Serial.print(m);
+            Serial.print(F(" target:"));
+            Serial.print(positions[m]);
+            Serial.print(F(" real:"));
+            Serial.println(motors[m].getPosition());
+            return false;
+        }
         delay(1);
     }
+    return true;
 }
 
 bool busy(int m)
@@ -85,9 +108,7 @@ void moveAbs(int m, int power, int16_t degree, bool wait = true)
     Serial.print(pos);
 #endif
 
-    positions[m] = pos;
-
-    motors[m].goToPosition(positions[m]);
+    setTarget(m, pos);
     if (wait)
     {
         waitForArrival(m);
@@ -130,21 +151,28 @@ void moveRel(int m, int power, int16_t degree, bool wait = true)
     Serial.print(motors[m].getPosition());
 #endif
 
-    if (isOverwrite(positions[m], pos))
+    bool overflow = isOverwrite(positions[m], pos);
+    if (!overflow)
     {
-        positions[m] = pos;
-        motors[m].setPosition(0);
-    }
-    else
-    {
-        positions[m] += pos;
+        pos += positions[m];
     }
 #ifdef DEBUG
     Serial.print(F(" after:"));
-    Serial.print(positions[m]);
+    Serial.print(pos);
 #endif
-    // motors[m].goToPositionWaitForArrivalOrTimeout(positions[m], 3000);
-    motors[m].goToPosition(positions[m]);
+    if (overflow)
+    {
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+        {
+            setTarget(m, pos);
+            // 编码器写入内部会重新开中断, 必须放在最后
+            motors[m].setPosition(0);
+        }
+    }
+    else
+    {
+        setTarget(m, pos);
+    }
     if (wait)
     {
         waitForArrival(m);
@@ -201,15 +229,23 @@ void endstop(int m, int power, int wait = 200)
             }
         }
     };
-    positions[m] = motors[m].getPosition();
+    int32_t stopped = motors[m].getPosition();
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        positions[m] = stopped;
+    }
 
     Serial.println(F(" "));
 }
 
 void reset(int m)
 {
-    positions[m] = 0;
-    motors[m].setPosition(0);
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+    {
+        positions[m] = 0;
+        // 编码器写入内部会重新开中断, 必须放在最后
+        motors[m].setPosition(0);
+    }
 }
 
 int32_t getPosition(int m)
