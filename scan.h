@@ -27,15 +27,15 @@ void ScanCal()
 
 void calibrateRGB()
 {
+    white_balance(rgb, white_rgb);
+}
 
-    for (int i = 0; i < 3; i++)
-    {
-        if (rgb[i] > white_rgb[i])
-        {
-            rgb[i] = white_rgb[i];
-        }
-        rgb[i] = map(rgb[i], 0, white_rgb[i], 0, 255);
-    }
+// getRGB 返回 "通道 / 总亮度 * 255", 强通道可能超过 255; 直接转成 uint8_t 会溢出
+static uint8_t clamp255(float v)
+{
+    if (v <= 0)
+        return 0;
+    return v >= 255 ? 255 : uint8_t(v);
 }
 
 static uint8_t median3(uint8_t a, uint8_t b, uint8_t c)
@@ -60,9 +60,9 @@ void readRGB(uint8_t *out)
     {
         float red, green, blue;
         colorSensor.getRGB(&red, &green, &blue);
-        samples[0][i] = uint8_t(red);
-        samples[1][i] = uint8_t(green);
-        samples[2][i] = uint8_t(blue);
+        samples[0][i] = clamp255(red);
+        samples[1][i] = clamp255(green);
+        samples[2][i] = clamp255(blue);
     }
     for (uint8_t ch = 0; ch < 3; ch++)
     {

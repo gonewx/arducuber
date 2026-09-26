@@ -150,6 +150,14 @@ void CubeInsert()
     {
       moveRel(M_TURN, 75, -2 * ratio[M_TURN], true);
     }
+    if (btn.isPressed(BTN_UP))
+    {
+      calibrate_white();
+      count = 0;
+      lcd.clear();
+      lcd.setCursor(0, 1);
+      lcd.print("Insert cube...");
+    }
     delay(10);
   }
 }
@@ -288,37 +296,97 @@ bool Solve(byte *cube)
   return solved;
 }
 
+// 等待魔方连续被检测到约 1.5 秒; 超时返回 false
+bool waitCubePresent(unsigned long timeoutMs)
+{
+  unsigned long startMs = millis();
+  int count = 0;
+  while (count < 100)
+  {
+    count = CubeSense() ? count + 1 : 0;
+    if (millis() - startMs > timeoutMs)
+      return false;
+    delay(10);
+  }
+  return true;
+}
+
+// 白平衡校准: 在 "Insert cube..." 界面按 "上" 键进入。
+// 放入白色中心朝上的魔方 -> 扫描臂移到中心读取 16 次取平均 -> 存入 EEPROM -> 取出魔方。
+// (旧版本要求读数超过 250 才结束, 白色实际约 170~240, 所以会一直卡在 "Cal White...")
 void calibrate_white()
 {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Cal White:");
+  lcd.setCursor(0, 1);
+  lcd.print("White center up");
+  Serial.println(F("Calibrate white"));
+
+  while (btn.isPressed(BTN_UP))
+    delay(10);
+
+  if (!waitCubePresent(20000))
+  {
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("Cal canceled");
+    delay(1500);
+    return;
+  }
+
   moveAbs(M_SCAN, 100, T_SCNT, false);
   waitForArrival(M_SCAN);
-  delay(100);
+  delay(SCAN_SETTLE_MS);
 
-  float red, green, blue;
-
-  while (true)
+  uint16_t sum[3] = {0, 0, 0};
+  const uint8_t n = 16;
+  for (uint8_t i = 0; i < n; i++)
   {
-    delay((256 - TCS34725_INTEGRATIONTIME_101MS) * 12 / 5 + 1);
-    colorSensor.getRGB(&red, &green, &blue);
-    white_rgb[0] = uint8_t(red);
-    white_rgb[1] = uint8_t(green);
-    white_rgb[2] = uint8_t(blue);
-
-    if (red > 250 || green > 250 || blue > 250)
-      break;
+    uint8_t sample[3];
+    readRGB(sample);
+    for (uint8_t ch = 0; ch < 3; ch++)
+      sum[ch] += sample[ch];
   }
+  ScanAway();
+
+  uint8_t w[3];
+  for (uint8_t ch = 0; ch < 3; ch++)
+    w[ch] = sum[ch] / n;
+
+  Serial.print(F("White R: "));
+  Serial.print(w[0]);
+  Serial.print(F(" G: "));
+  Serial.print(w[1]);
+  Serial.print(F(" B: "));
+  Serial.println(w[2]);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  if (w[0] < 20 || w[1] < 20 || w[2] < 20)
+  {
+    // 读数过暗, 多半是传感器没有对准魔方, 保留原来的校准值
+    lcd.print("Cal failed");
+  }
+  else
+  {
+    for (uint8_t ch = 0; ch < 3; ch++)
+      white_rgb[ch] = w[ch];
+    writeWhiteRGB();
+    lcd.print("Cal White OK");
+  }
+  lcd.setCursor(0, 1);
+  lcd.print(w[0]);
+  lcd.print(' ');
+  lcd.print(w[1]);
+  lcd.print(' ');
+  lcd.print(w[2]);
+  delay(2000);
+
   lcd.clear();
   lcd.setCursor(0, 1);
-  lcd.print("Cal White suc");
-#ifdef DEBUG
-  Serial.print(F("Calibrate white successful R: "));
-  Serial.print(white_rgb[0]);
-  Serial.print(F(" G: "));
-  Serial.print(white_rgb[1]);
-  Serial.print(F(" B: "));
-  Serial.println(white_rgb[2]);
-#endif
-  writeWhiteRGB();
+  lcd.print("Remove cube...");
+  CubeRemove();
 }
 
 void loop()
@@ -361,27 +429,11 @@ void loop()
   //   Spin(1);
   // }
 
-  bool cal_white = false;
-
   while (true)
   {
     ScanAway();
     TiltAway();
     delay(500);
-
-    if (!cal_white && btn.isPressed(BTN_UP))
-    {
-      cal_white = true;
-
-      lcd.clear();
-      lcd.setCursor(0, 1);
-      lcd.print("Cal White...");
-
-      Serial.println(F("Calibrate white"));
-
-      calibrate_white();
-      continue;
-    }
 
     lcd.clear();
     lcd.setCursor(0, 1);

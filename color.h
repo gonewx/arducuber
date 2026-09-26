@@ -98,6 +98,21 @@ public:
   uint8_t clr;
 };
 
+// 白平衡: 按白色读数把各通道按比例缩放, 使白色的三个通道相等。
+// 只缩放不截断 (旧代码先把各通道截断到白色读数, 红/黄等颜色的强通道会被削平);
+// white 为默认值 (255, 255, 255) 时不改变读数。
+inline void white_balance(uint8_t *rgb, const uint8_t *white)
+{
+  long avg = (long(white[0]) + white[1] + white[2]) / 3;
+  for (int i = 0; i < 3; i++)
+  {
+    if (white[i] == 0)
+      continue;
+    long v = long(rgb[i]) * avg / white[i];
+    rgb[i] = v > 255 ? 255 : uint8_t(v);
+  }
+}
+
 class CubeColors
 {
 public:

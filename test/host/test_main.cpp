@@ -121,9 +121,62 @@ static void testRandomScrambles()
     }
 }
 
+// 白平衡: 默认值不改变读数; 按比例缩放后白色三通道相等; 用实测数据里的白色中心校准后,
+// 第 0、2 组仍能识别并求解 (旧的 "截断" 做法会让第 0 组 6 种策略里只剩 1 种成功)
+static void testWhiteBalance()
+{
+    const uint8_t def[3] = {255, 255, 255};
+    uint8_t rgb[3] = {12, 200, 255};
+    white_balance(rgb, def);
+    CHECK(rgb[0] == 12 && rgb[1] == 200 && rgb[2] == 255, "default white changed rgb");
+
+    const uint8_t w[3] = {200, 160, 120};
+    uint8_t white[3] = {200, 160, 120};
+    white_balance(white, w);
+    CHECK(white[0] == 160 && white[1] == 160 && white[2] == 160, "white not balanced: %d %d %d", white[0], white[1], white[2]);
+
+    uint8_t strong[3] = {250, 40, 30};
+    white_balance(strong, w);
+    CHECK(strong[0] == 200 && strong[1] == 40 && strong[2] == 40, "proportional: %d %d %d", strong[0], strong[1], strong[2]);
+
+    for (int c = 0; c < 3; c += 2)
+    {
+        // 白色中心 = 6 个中心里 sl 最小的
+        int wf = 0;
+        long best = 1L << 30;
+        for (int f = 0; f < NFACE; f++)
+        {
+            Color x;
+            x.setRGB(fake_colors[c][f * 9 + 8][0], fake_colors[c][f * 9 + 8][1], fake_colors[c][f * 9 + 8][2]);
+            if (x.sl < best)
+            {
+                best = x.sl;
+                wf = f;
+            }
+        }
+        const uint8_t *wc = fake_colors[c][wf * 9 + 8];
+        for (int f = 0; f < NFACE; f++)
+            for (int p = 0; p < 9; p++)
+            {
+                uint8_t v[3] = {fake_colors[c][f * 9 + p][0], fake_colors[c][f * 9 + p][1], fake_colors[c][f * 9 + p][2]};
+                white_balance(v, wc);
+                cubeColors.setRGB(f, p, v);
+            }
+        bool ok = false;
+        for (int t = 0; t < COLOR_STRATEGIES && !ok; t++)
+        {
+            byte cube[NFACE * 8];
+            cubeColors.determine_colors(cube, t);
+            ok = validator.valid_pieces(cube) && cubeSolver.solve(cube) && appliesToSolved(cube);
+        }
+        CHECK(ok, "cube %d not solvable after white balance", c);
+    }
+}
+
 int main()
 {
     testColorHsl();
+    testWhiteBalance();
     testFakeCubes();
     testRandomScrambles();
     if (failures)
