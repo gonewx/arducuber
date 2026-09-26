@@ -1,4 +1,4 @@
-// 马达诊断: 依次让 Megashield 的 Motor1/2/3 正转、反转各一小段,
+// 马达诊断: 依次让 Megashield 的 Motor1~6 正转、反转各一小段 (没接马达的口会显示 NO ENCODER CHANGE),
 // 读取编码器变化, 判断是马达没转 (供电/驱动/线缆) 还是编码器没读到。
 // 串口监视器 115200。按 Mega 上的复位键可重新测试。
 #include <BricktronicsMegashield.h>
@@ -7,9 +7,14 @@
 BricktronicsMotor motors[] = {
     BricktronicsMotor(BricktronicsMegashield::MOTOR_1),
     BricktronicsMotor(BricktronicsMegashield::MOTOR_2),
-    BricktronicsMotor(BricktronicsMegashield::MOTOR_3)};
+    BricktronicsMotor(BricktronicsMegashield::MOTOR_3),
+    BricktronicsMotor(BricktronicsMegashield::MOTOR_4),
+    BricktronicsMotor(BricktronicsMegashield::MOTOR_5),
+    BricktronicsMotor(BricktronicsMegashield::MOTOR_6)};
 
-const char *const names[] = {"Motor1 (turntable)", "Motor2 (tilt)", "Motor3 (scan)"};
+const char *const names[] = {"Motor1 (turntable)", "Motor2 (tilt)", "Motor3 (scan)",
+                             "Motor4 (spare)", "Motor5 (spare)", "Motor6 (spare)"};
+const int NMOTOR = 6;
 
 const int16_t DRIVE = 130;  // 约 50% 功率, 时间很短, 扫描臂/翻转臂碰到限位也无妨
 const int PULSE_MS = 250;
@@ -57,11 +62,11 @@ void setup()
   Serial.begin(115200);
   delay(500);
   Serial.println(F("Motor test start (motors are powered from the Megashield DC jack, NOT from USB)"));
-  for (int m = 0; m < 3; m++)
+  for (int m = 0; m < NMOTOR; m++)
   {
     motors[m].begin();
   }
-  for (int m = 0; m < 3; m++)
+  for (int m = 0; m < NMOTOR; m++)
   {
     testMotor(m);
     delay(500);

@@ -64,7 +64,7 @@ scripts/arduino.sh monitor /dev/ttyACM0   # 串口监视器 (115200)
 
 `setup` 会安装以下依赖：AVR 开发板支持包、Adafruit TCS34725（自动附带 Adafruit BusIO）、LiquidCrystal I2C、HCSR04 ultrasonic sensor，以及从 GitHub 安装的 BricktronicsMegashield、BricktronicsMotor、BricktronicsButton。
 
-马达有问题时（例如开机卡在 `Reset scan...`），运行 `scripts/arduino.sh motor-test <端口>`。它会依次让三个马达口各正转、反转一小段，并在串口上报告马达是否转动、编码器是否计数。
+马达有问题时（例如开机卡在 `Reset scan...`），运行 `scripts/arduino.sh motor-test <端口>`。它会依次让六个马达口（Motor1~6）各正转、反转一小段，并在串口上报告马达是否转动、编码器是否计数。
 
 如果之前运行过其他版本的程序并做过白平衡校准，先运行 `scripts/arduino.sh clear-eeprom <端口>` 清空 EEPROM，再上传本程序。
 
