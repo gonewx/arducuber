@@ -45,6 +45,27 @@
 - HCSR04
 - LiquidCrystal_I2C
 
+## 命令行安装 (arduino-cli)
+
+不想在 Arduino IDE 里逐个安装库，可以用 [arduino-cli](https://arduino.github.io/arduino-cli/latest/installation/) 一次装好。
+
+1. 安装 arduino-cli：
+   - macOS：`brew install arduino-cli`
+   - Windows：`winget install ArduinoSA.CLI`
+   - Linux：`curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh`，然后把生成的 `bin` 目录加入 `PATH`
+2. 在本项目目录下运行脚本。脚本是 bash 写的，Windows 上请在 Git Bash 或 WSL 中运行：
+
+```bash
+scripts/arduino.sh setup                  # 安装 AVR 核心和全部依赖库，只需执行一次
+scripts/arduino.sh ports                  # 查看开发板所在端口
+scripts/arduino.sh upload /dev/ttyACM0    # 编译并上传；Windows 上端口形如 COM3
+scripts/arduino.sh monitor /dev/ttyACM0   # 串口监视器 (115200)
+```
+
+`setup` 会安装以下依赖：AVR 开发板支持包、Adafruit TCS34725（自动附带 Adafruit BusIO）、LiquidCrystal I2C、HCSR04 ultrasonic sensor，以及从 GitHub 安装的 BricktronicsMegashield、BricktronicsMotor、BricktronicsButton。
+
+如果之前运行过其他版本的程序并做过白平衡校准，先运行 `scripts/arduino.sh clear-eeprom <端口>` 清空 EEPROM，再上传本程序。
+
 ## 硬件成本
 
 | 器件                    | 数量 | 成本 (RMB) | 描述 |
