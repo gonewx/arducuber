@@ -6,6 +6,7 @@
 #   scripts/arduino.sh upload <端口>         编译并上传, 例如 /dev/ttyACM0 或 COM3
 #   scripts/arduino.sh monitor <端口>        打开串口监视器 (115200)
 #   scripts/arduino.sh clear-eeprom <端口>   上传清空 EEPROM 的程序 (清除白平衡校准值)
+#   scripts/arduino.sh motor-test <端口>     上传马达诊断程序并打开串口监视器
 #   scripts/arduino.sh ports                 列出已连接的开发板
 set -euo pipefail
 
@@ -64,12 +65,20 @@ clear-eeprom)
     arduino-cli upload --fqbn "$FQBN" -p "$2" "$SKETCH_DIR/tools/eeprom_clear"
     echo "EEPROM 已清空 (板载 LED 常亮)。请重新执行: $0 upload $2"
     ;;
+motor-test)
+    need_cli
+    need_port "${2:-}"
+    arduino-cli compile --fqbn "$FQBN" "$SKETCH_DIR/tools/motor_test"
+    arduino-cli upload --fqbn "$FQBN" -p "$2" "$SKETCH_DIR/tools/motor_test"
+    echo "诊断程序已上传, 按 Ctrl+C 退出串口监视器; 测试完请重新执行: $0 upload $2"
+    arduino-cli monitor -p "$2" --config baudrate=115200
+    ;;
 ports)
     need_cli
     arduino-cli board list
     ;;
 *)
-    sed -n '2,10p' "$0"
+    sed -n '2,11p' "$0"
     exit 1
     ;;
 esac
